@@ -1,0 +1,210 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <packaging>pom</packaging>
+
+    <groupId>io.quarkus.arc.tck</groupId>
+    <artifactId>arc-tck-runner-parent</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <name>CDI-lite TCK Runner for Arc</name>
+
+    <modules>
+        <module>transformer</module>
+        <module>runner</module>
+    </modules>
+
+    <properties>
+        <maven.compiler.release>11</maven.compiler.release>
+        <compiler.version>3.8.1</compiler.version>
+        <surefire.version>3.0.0-M5</surefire.version>
+        <arquillian.version>1.7.0.Alpha10</arquillian.version>
+        <cdi.api.version>3.0.0</cdi.api.version>
+        <!-- local build of quarkus main -->
+        <quarkus.version>999-SNAPSHOT</quarkus.version>
+        <!-- From https://github.com/eclipse-ee4j/cdi-tck/tree/cdi-lite -->
+        <cdi.tck.version>4.1.1-20210621-lite</cdi.tck.version>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>io.quarkus</groupId>
+                <artifactId>quarkus-bom</artifactId>
+                <version>${quarkus.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>
+        <!-- The Jakarta EE9+ dependencies -->
+        <dependency>
+            <groupId>jakarta.enterprise</groupId>
+            <artifactId>jakarta.enterprise.cdi-api</artifactId>
+            <version>${cdi.api.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>jakarta.annotation</groupId>
+            <artifactId>jakarta.annotation-api</artifactId>
+            <version>2.0.0</version>
+        </dependency>
+        <dependency>
+            <groupId>jakarta.interceptor</groupId>
+            <artifactId>jakarta.interceptor-api</artifactId>
+            <version>2.0.0</version>
+        </dependency>
+        <dependency>
+            <groupId>jakarta.inject</groupId>
+            <artifactId>jakarta.inject-api</artifactId>
+            <version>2.0.0</version>
+        </dependency>
+        <dependency>
+            <groupId>jakarta.enterprise</groupId>
+            <artifactId>cdi-tck-core-impl</artifactId>
+            <version>4.1.1-20210621-lite</version>
+        </dependency>
+        <dependency>
+            <groupId>jakarta.transaction</groupId>
+            <artifactId>jakarta.transaction-api</artifactId>
+            <version>2.0.0</version>
+        </dependency>
+
+        <!-- The transformed Quarkus/Arc and related dependencies with exclusions to prevent inclusion of
+            untransformed artifacts.
+        -->
+        <dependency>
+            <groupId>org.eclipse.microprofile.config</groupId>
+            <artifactId>microprofile-config-api</artifactId>
+            <version>1.4</version>
+            <classifier>ee9</classifier>
+        </dependency>
+        <dependency>
+            <groupId>io.smallrye.config</groupId>
+            <artifactId>smallrye-config</artifactId>
+            <version>1.10.0</version>
+            <classifier>ee9</classifier>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.eclipse.microprofile.config</groupId>
+                    <artifactId>microprofile-config-api</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-arc</artifactId>
+            <version>${quarkus.version}</version>
+            <classifier>ee9</classifier>
+            <exclusions>
+                <exclusion>
+                    <groupId>io.quarkus</groupId>
+                    <artifactId>quarkus-core</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>io.quarkus.arc</groupId>
+                    <artifactId>arc</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-arc-deployment</artifactId>
+            <version>${quarkus.version}</version>
+            <classifier>ee9</classifier>
+            <exclusions>
+                <exclusion>
+                    <groupId>io.quarkus.arc</groupId>
+                    <artifactId>arc-processor</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>io.quarkus</groupId>
+                    <artifactId>quarkus-arc</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>io.quarkus</groupId>
+                    <artifactId>quarkus-core</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus.arc</groupId>
+            <artifactId>arc</artifactId>
+            <version>${quarkus.version}</version>
+            <classifier>ee9</classifier>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus.arc</groupId>
+            <artifactId>arc-processor</artifactId>
+            <version>${quarkus.version}</version>
+            <classifier>ee9</classifier>
+            <exclusions>
+                <exclusion>
+                    <groupId>io.quarkus.arc</groupId>
+                    <artifactId>arc</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-core</artifactId>
+            <classifier>ee9</classifier>
+            <version>${quarkus.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>io.quarkus.arc</groupId>
+                    <artifactId>arc</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>io.smallrye.config</groupId>
+                    <artifactId>smallrye-config</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-arquillian</artifactId>
+            <classifier>ee9</classifier>
+            <version>${quarkus.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>io.quarkus</groupId>
+                    <artifactId>quarkus-core</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>io.quarkus</groupId>
+                    <artifactId>quarkus-arc-deployment</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <!-- This is not transformed, but it needs to be explicitly included with an excluded on the transformed quarkus-arc-deployment -->
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-bootstrap-core</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>io.quarkus</groupId>
+                    <artifactId>quarkus-arc-deployment</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <!-- Test container dependencies -->
+        <dependency>
+            <groupId>org.jboss.arquillian.container</groupId>
+            <artifactId>arquillian-container-test-api</artifactId>
+            <version>${arquillian.version}</version>
+            <!--scope>test</scope-->
+        </dependency>
+        <dependency>
+            <groupId>org.jboss.arquillian.testng</groupId>
+            <artifactId>arquillian-testng-core</artifactId>
+            <version>${arquillian.version}</version>
+            <!--scope>test</scope-->
+        </dependency>
+    </dependencies>
+
+</project>
+
