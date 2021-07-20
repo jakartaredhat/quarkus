@@ -11,13 +11,154 @@
 
     <artifactId>arc-tck-runner</artifactId>
     <version>1.0.0-SNAPSHOT</version>
-    <name>CDI-lite TCK Runner Parent for Arc</name>
+    <name>CDI-lite TCK Runner for Arc</name>
 
     <properties>
-        <maven.compiler.release>11</maven.compiler.release>
     </properties>
 
     <dependencies>
+        <!-- The transformed Quarkus/Arc and related dependencies with exclusions to prevent inclusion of
+    untransformed artifacts.
+-->
+        <dependency>
+            <groupId>org.eclipse.microprofile.config</groupId>
+            <artifactId>microprofile-config-api-ee9</artifactId>
+            <version>2.0</version>
+        </dependency>
+        <dependency>
+            <groupId>io.smallrye.config</groupId>
+            <artifactId>smallrye-config-ee9</artifactId>
+            <version>2.3.0</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>io.smallrye.config</groupId>
+                    <artifactId>smallrye-config-core</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.eclipse.microprofile.config</groupId>
+                    <artifactId>microprofile-config-api</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-arc-ee9</artifactId>
+            <version>${quarkus.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>io.quarkus</groupId>
+                    <artifactId>quarkus-core</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>io.quarkus.arc</groupId>
+                    <artifactId>arc</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-arc-deployment-ee9</artifactId>
+            <version>${quarkus.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>io.quarkus.arc</groupId>
+                    <artifactId>arc</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>io.quarkus.arc</groupId>
+                    <artifactId>arc-processor</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>io.quarkus</groupId>
+                    <artifactId>quarkus-arc</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>io.quarkus</groupId>
+                    <artifactId>quarkus-core</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.junit.platform</groupId>
+                    <artifactId>junit-platform-launcher</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.junit.jupiter</groupId>
+                    <artifactId>junit-jupiter</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus.arc</groupId>
+            <artifactId>arc-ee9</artifactId>
+            <version>${quarkus.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus.arc</groupId>
+            <artifactId>arc-processor-ee9</artifactId>
+            <version>${quarkus.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>io.quarkus.arc</groupId>
+                    <artifactId>arc</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-core-ee9</artifactId>
+            <version>${quarkus.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>io.quarkus.arc</groupId>
+                    <artifactId>arc</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>io.smallrye.config</groupId>
+                    <artifactId>smallrye-config</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-arquillian-ee9</artifactId>
+            <version>${quarkus.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>io.quarkus</groupId>
+                    <artifactId>quarkus-core</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>io.quarkus</groupId>
+                    <artifactId>quarkus-core-deployment</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>io.quarkus</groupId>
+                    <artifactId>quarkus-arc-deployment</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>io.quarkus</groupId>
+                    <artifactId>quarkus-test-common</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-test-common-ee9</artifactId>
+            <version>${quarkus.version}</version>
+        </dependency>
+        <!-- This is not transformed, but it needs to be explicitly included with an excluded on the transformed quarkus-arc-deployment -->
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-bootstrap-core</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>io.quarkus</groupId>
+                    <artifactId>quarkus-arc-deployment</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+
         <!-- Test container dependencies -->
         <dependency>
             <groupId>org.jboss.arquillian.container</groupId>
@@ -31,6 +172,11 @@
             <version>${arquillian.version}</version>
             <!--scope>test</scope-->
         </dependency>
+        <dependency>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-surefire-plugin</artifactId>
+            <version>${surefire.version}</version>
+        </dependency>
     </dependencies>
 
     <build>
@@ -42,15 +188,6 @@
                 <configuration>
                     <systemPropertyVariables>
                     </systemPropertyVariables>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>${compiler.version}</version>
-                <configuration>
-                    <source>11</source>
-                    <target>11</target>
                 </configuration>
             </plugin>
         </plugins>
@@ -116,17 +253,27 @@
                                 <!-- Specified system properties are not
                                     available during in-container test execution -->
                                 <org.jboss.cdi.tck.libraryDirectory>target/dependency/lib</org.jboss.cdi.tck.libraryDirectory>
+                                <!-- Disable quarkus optimization -->
+                                <quarkus.arc.remove-unused-beans>false</quarkus.arc.remove-unused-beans>
+                                <!-- 1. There is a bug in TCK: -->
+                                <!-- https://github.com/eclipse/microprofile-config/issues/543 -->
+                                <!-- 2. After transformation we get a ClassCastException which is very likely caused by a class loading problem in our Arquillian adapter -->
+                                <quarkus.arc.transform-unproxyable-classes>false</quarkus.arc.transform-unproxyable-classes>
                             </systemPropertyVariables>
                             <forkMode>once</forkMode>
                             <skipAfterFailureCount>2500</skipAfterFailureCount>
                             <suiteXmlFiles>
-                                <suiteXmlFile>target/suites/tck-debug-suite.xml</suiteXmlFile>
+                                <suiteXmlFile>target/suites/tck-core-suite.xml</suiteXmlFile>
                             </suiteXmlFiles>
 
                             <properties>
                                 <property>
                                     <name>usedefaultlisteners</name>
                                     <value>false</value>
+                                </property>
+                                <property>
+                                    <name>surefire.testng.verbose</name>
+                                    <value>10</value>
                                 </property>
                             </properties>
                             <!-- https://issues.apache.org/jira/browse/SUREFIRE-569 -->
@@ -138,126 +285,7 @@
                 </plugins>
             </build>
         </profile>
-
-        <!-- A profile to transform the arc artifacts using ee8 dependencies -->
-        <profile>
-            <id>ee9-transform</id>
-            <activation>
-                <property>
-                    <name>transform</name>
-                    <value>arc</value>
-                </property>
-            </activation>
-            <dependencies>
-                <dependency>
-                    <groupId>org.eclipse.microprofile.config</groupId>
-                    <artifactId>microprofile-config-api</artifactId>
-                    <version>1.4</version>
-                </dependency>
-                <dependency>
-                    <groupId>io.smallrye.config</groupId>
-                    <artifactId>smallrye-config</artifactId>
-                    <version>1.10.0</version>
-                </dependency>
-                <dependency>
-                    <groupId>io.quarkus</groupId>
-                    <artifactId>quarkus-arc</artifactId>
-                    <version>${quarkus.version}</version>
-                </dependency>
-                <dependency>
-                    <groupId>io.quarkus</groupId>
-                    <artifactId>quarkus-arc-deployment</artifactId>
-                    <version>${quarkus.version}</version>
-                </dependency>
-                <dependency>
-                    <groupId>io.quarkus.arc</groupId>
-                    <artifactId>arc</artifactId>
-                    <version>${quarkus.version}</version>
-                </dependency>
-                <dependency>
-                    <groupId>io.quarkus.arc</groupId>
-                    <artifactId>arc-processor</artifactId>
-                    <version>${quarkus.version}</version>
-                </dependency>
-                <dependency>
-                    <groupId>io.quarkus</groupId>
-                    <artifactId>quarkus-core</artifactId>
-                    <version>${quarkus.version}</version>
-                </dependency>
-                <dependency>
-                    <groupId>io.quarkus</groupId>
-                    <artifactId>quarkus-arquillian</artifactId>
-                    <version>${quarkus.version}</version>
-                </dependency>
-            </dependencies>
-
-            <build>
-                <plugins>
-                    <!-- Copy the arc dependencies that have EE8 usage to target/dependency/ee8 for subsequent transformation -->
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-dependency-plugin</artifactId>
-                        <version>3.1.2</version>
-                        <executions>
-                            <execution>
-                                <id>copy-arc-dependencies</id>
-                                <phase>process-resources</phase>
-                                <goals>
-                                    <goal>copy-dependencies</goal>
-                                </goals>
-                                <configuration>
-                                    <excludeClassifiers>ee9</excludeClassifiers>
-                                    <excludeTransitive>true</excludeTransitive>
-                                    <excludeGroupIds>jakarta.annotation,jakarta.enterprise,jakarta.inject,jakarta.interceptor,jakarta.transaction,
-                                        org.jboss.arquillian.container,org.jboss.arquillian.testng
-                                    </excludeGroupIds>
-                                    <stripVersion>false</stripVersion>
-                                    <overWriteReleases>true</overWriteReleases>
-                                    <outputDirectory>${project.build.directory}/dependency/ee8</outputDirectory>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                    <plugin>
-                        <groupId>org.codehaus.mojo</groupId>
-                        <artifactId>exec-maven-plugin</artifactId>
-                        <version>3.0.1-SNAPSHOT</version>
-                        <executions>
-                            <execution>
-                                <phase>test</phase>
-                                <goals>
-                                    <goal>java</goal>
-                                </goals>
-                                <configuration>
-                                    <mainClass>transform.RunTransformer</mainClass>
-                                </configuration>
-                            </execution>
-                        </executions>
-
-                        <configuration>
-                            <includeProjectDependencies>false</includeProjectDependencies>
-                            <!-- https://github.com/mojohaus/exec-maven-plugin/issues/76 need to avoid or use patch!!! -->
-                            <includePluginDependencies>true</includePluginDependencies>
-                            <basedir>${project.basedir}</basedir>
-                            <executableDependency>
-                                <groupId>io.quarkus.arc.tck</groupId>
-                                <artifactId>transformer</artifactId>
-                            </executableDependency>
-                            <mainClass>io.quarkus.arc.transform.RunTransformer</mainClass>
-                        </configuration>
-                        <dependencies>
-                            <dependency>
-                                <groupId>io.quarkus.arc.tck</groupId>
-                                <artifactId>transformer</artifactId>
-                                <version>${project.version}</version>
-                            </dependency>
-                        </dependencies>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
     </profiles>
-
 
 </project>
 
