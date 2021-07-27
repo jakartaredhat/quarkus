@@ -1,5 +1,6 @@
 package io.quarkus.deployment.dev;
 
+import static io.quarkus.deployment.dev.testing.MessageFormat.BLUE;
 import static java.util.Collections.singleton;
 
 import java.io.ByteArrayInputStream;
@@ -24,8 +25,12 @@ import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
+import org.apache.maven.shared.utils.cli.CommandLineException;
+import org.apache.maven.shared.utils.cli.CommandLineUtils;
 import org.eclipse.microprofile.config.spi.ConfigProviderResolver;
 import org.jboss.logging.Logger;
+import org.jboss.logmanager.formatters.ColorPatternFormatter;
+import org.jboss.logmanager.handlers.ConsoleHandler;
 
 import io.quarkus.bootstrap.app.AugmentAction;
 import io.quarkus.bootstrap.app.ClassChangeInformation;
@@ -42,12 +47,13 @@ import io.quarkus.builder.BuildStep;
 import io.quarkus.deployment.CodeGenerator;
 import io.quarkus.deployment.builditem.ApplicationClassPredicateBuildItem;
 import io.quarkus.deployment.codegen.CodeGenData;
+import io.quarkus.deployment.console.ConsoleCommand;
+import io.quarkus.deployment.console.ConsoleStateManager;
+import io.quarkus.deployment.dev.testing.MessageFormat;
 import io.quarkus.deployment.dev.testing.TestSupport;
 import io.quarkus.deployment.steps.ClassTransformingBuildStep;
 import io.quarkus.deployment.util.FSWatchUtil;
 import io.quarkus.dev.console.DevConsoleManager;
-import io.quarkus.dev.console.InputHandler;
-import io.quarkus.dev.console.QuarkusConsole;
 import io.quarkus.dev.spi.DevModeType;
 import io.quarkus.dev.spi.HotReplacementSetup;
 import io.quarkus.runner.bootstrap.AugmentActionImpl;
@@ -72,6 +78,7 @@ public class IsolatedDevModeMain implements BiConsumer<CuratedApplication, Map<S
     private static final CountDownLatch shutdownLatch = new CountDownLatch(1);
     private Thread shutdownThread;
     private final FSWatchUtil fsWatchUtil = new FSWatchUtil();
+    private static volatile ConsoleStateManager.ConsoleContext consoleContext;
 
     private synchronized void firstStart(QuarkusClassLoader deploymentClassLoader, List<CodeGenData> codeGens) {
 
@@ -94,35 +101,40 @@ public class IsolatedDevModeMain implements BiConsumer<CuratedApplication, Map<S
                                         || context.isAbortOnFailedStart()) {
                                     return;
                                 }
-                                final CountDownLatch latch = new CountDownLatch(1);
-                                QuarkusConsole.INSTANCE.pushInputHandler(new InputHandler() {
-                                    @Override
-                                    public void handleInput(int[] keys) {
-                                        for (int i : keys) {
-                                            if (i == 'q') {
-                                                System.exit(0);
-                                            } else {
-                                                QuarkusConsole.INSTANCE.popInputHandler();
-                                                latch.countDown();
-                                            }
-                                        }
-                                    }
-
-                                    @Override
-                                    public void promptHandler(ConsoleStatus promptHandler) {
-                                        promptHandler.setPrompt("\u001B[91mQuarkus application exited with code " + integer
-                                                + "\nPress [q] or Ctrl + C to quit, any other key to restart");
-                                    }
-                                });
-                                try {
-                                    latch.await();
-                                    System.out.println("Restarting...");
-                                    RuntimeUpdatesProcessor.INSTANCE.checkForChangedClasses(false);
-                                    RuntimeUpdatesProcessor.INSTANCE.checkForChangedTestClasses(false);
-                                    restartApp(RuntimeUpdatesProcessor.INSTANCE.checkForFileChange(), null);
-                                } catch (Exception e) {
-                                    log.error("Failed to restart", e);
+                                if (consoleContext == null) {
+                                    consoleContext = ConsoleStateManager.INSTANCE
+                                            .createContext("Completed Application");
                                 }
+                                //this sucks, but when we get here logging is gone
+                                //so we just setup basic console logging
+                                InitialConfigurator.DELAYED_HANDLER.addHandler(new ConsoleHandler(
+                                        ConsoleHandler.Target.SYSTEM_OUT,
+                                        new ColorPatternFormatter("%d{yyyy-MM-dd HH:mm:ss,SSS} %-5p [%c{3.}] (%t) %s%e%n")));
+                                consoleContext.reset(new ConsoleCommand(' ', "Restarts the application", "to restart", 0, null,
+                                        () -> {
+                                            consoleContext.reset();
+                                            RuntimeUpdatesProcessor.INSTANCE.doScan(true, true);
+                                        }),
+                                        new ConsoleCommand('e', "Edits the command line parameters and restarts",
+                                                "to edit command line args (currently '" + MessageFormat.GREEN
+                                                        + String.join(" ", context.getArgs()) + MessageFormat.RESET + "')",
+                                                100, new ConsoleCommand.HelpState(() -> BLUE,
+                                                        () -> String.join(" ", context.getArgs())),
+                                                new Consumer<String>() {
+                                                    @Override
+                                                    public void accept(String args) {
+                                                        try {
+                                                            context.setArgs(
+                                                                    CommandLineUtils.translateCommandline(args));
+                                                        } catch (CommandLineException e) {
+                                                            log.error("Failed to parse command line", e);
+                                                            return;
+                                                        }
+                                                        consoleContext.reset();
+                                                        RuntimeUpdatesProcessor.INSTANCE.doScan(true, true);
+                                                    }
+                                                }));
+
                             }
                         });
 
@@ -197,6 +209,9 @@ public class IsolatedDevModeMain implements BiConsumer<CuratedApplication, Map<S
 
     public synchronized void restartApp(Set<String> changedResources, ClassChangeInformation classChangeInformation) {
         restarting = true;
+        if (consoleContext != null) {
+            consoleContext.reset();
+        }
         stop();
         Timing.restart(curatedApplication.getAugmentClassLoader());
         deploymentProblem = null;
@@ -239,7 +254,7 @@ public class IsolatedDevModeMain implements BiConsumer<CuratedApplication, Map<S
             QuarkusCompiler compiler = new QuarkusCompiler(curatedApplication, compilationProviders, context);
             TestSupport testSupport = null;
             if (devModeType == DevModeType.LOCAL && context.getApplicationRoot().getTest().isPresent()) {
-                testSupport = new TestSupport(curatedApplication, compilationProviders, context);
+                testSupport = new TestSupport(curatedApplication, compilationProviders, context, devModeType);
             }
 
             RuntimeUpdatesProcessor processor = new RuntimeUpdatesProcessor(appRoot, context, compiler,
@@ -377,7 +392,7 @@ public class IsolatedDevModeMain implements BiConsumer<CuratedApplication, Map<S
                                                     .getContextClassLoader();
                                             //if the class file is present in this (and not the parent) CL then it is an application class
                                             List<ClassPathElement> res = cl
-                                                    .getElementsWithResource(s.replace(".", "/") + ".class", true);
+                                                    .getElementsWithResource(s.replace('.', '/') + ".class", true);
                                             return !res.isEmpty();
                                         }
                                     }));

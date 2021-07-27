@@ -42,11 +42,13 @@ import static org.jboss.resteasy.reactive.common.processor.ResteasyReactiveDotNa
 import static org.jboss.resteasy.reactive.common.processor.ResteasyReactiveDotNames.REST_MATRIX_PARAM;
 import static org.jboss.resteasy.reactive.common.processor.ResteasyReactiveDotNames.REST_PATH_PARAM;
 import static org.jboss.resteasy.reactive.common.processor.ResteasyReactiveDotNames.REST_QUERY_PARAM;
+import static org.jboss.resteasy.reactive.common.processor.ResteasyReactiveDotNames.REST_RESPONSE;
 import static org.jboss.resteasy.reactive.common.processor.ResteasyReactiveDotNames.REST_SSE_ELEMENT_TYPE;
 import static org.jboss.resteasy.reactive.common.processor.ResteasyReactiveDotNames.SET;
 import static org.jboss.resteasy.reactive.common.processor.ResteasyReactiveDotNames.SORTED_SET;
 import static org.jboss.resteasy.reactive.common.processor.ResteasyReactiveDotNames.STRING;
 import static org.jboss.resteasy.reactive.common.processor.ResteasyReactiveDotNames.SUSPENDED;
+import static org.jboss.resteasy.reactive.common.processor.ResteasyReactiveDotNames.TRANSACTIONAL;
 import static org.jboss.resteasy.reactive.common.processor.ResteasyReactiveDotNames.UNI;
 
 import java.lang.reflect.Modifier;
@@ -92,6 +94,7 @@ import org.jboss.resteasy.reactive.common.model.ResourceMethod;
 import org.jboss.resteasy.reactive.common.util.ReflectionBeanFactoryCreator;
 import org.jboss.resteasy.reactive.common.util.URLUtils;
 import org.jboss.resteasy.reactive.spi.BeanFactory;
+import org.objectweb.asm.Opcodes;
 
 public abstract class EndpointIndexer<T extends EndpointIndexer<T, PARAM, METHOD>, PARAM extends IndexedParameter<PARAM>, METHOD extends ResourceMethod> {
 
@@ -119,6 +122,8 @@ public abstract class EndpointIndexer<T extends EndpointIndexer<T, PARAM, METHOD
     private static final String[] PRODUCES_PLAIN_TEXT_NEGOTIATED = new String[] { MediaType.TEXT_PLAIN, MediaType.WILDCARD };
     private static final String[] PRODUCES_PLAIN_TEXT = new String[] { MediaType.TEXT_PLAIN };
     public static final String CDI_WRAPPER_SUFFIX = "$$CDIWrapper";
+
+    public static final String METHOD_CONTEXT_CUSTOM_RETURN_TYPE_KEY = "METHOD_CONTEXT_CUSTOM_RETURN_TYPE_KEY";
 
     static {
         Map<String, String> prims = new HashMap<>();
@@ -362,17 +367,26 @@ public abstract class EndpointIndexer<T extends EndpointIndexer<T, PARAM, METHOD
     }
 
     private boolean hasProperModifiers(MethodInfo info) {
+        if (isSynthetic(info.flags())) {
+            log.debug("Method '" + info.name() + " of Resource class '" + info.declaringClass().name()
+                    + "' is a synthetic method and will therefore be ignored");
+            return false;
+        }
         if ((info.flags() & Modifier.PUBLIC) == 0) {
             log.warn("Method '" + info.name() + " of Resource class '" + info.declaringClass().name()
-                    + "' it not public and will therefore be ignored");
+                    + "' is not public and will therefore be ignored");
             return false;
         }
         if ((info.flags() & Modifier.STATIC) != 0) {
             log.warn("Method '" + info.name() + " of Resource class '" + info.declaringClass().name()
-                    + "' it static and will therefore be ignored");
+                    + "' is static and will therefore be ignored");
             return false;
         }
         return true;
+    }
+
+    private boolean isSynthetic(int mod) {
+        return (mod & Opcodes.ACC_SYNTHETIC) != 0;
     }
 
     private ResourceMethod createResourceMethod(ClassInfo currentClassInfo, ClassInfo actualEndpointInfo,
@@ -411,6 +425,7 @@ public abstract class EndpointIndexer<T extends EndpointIndexer<T, PARAM, METHOD
                         existingConverters, additionalReaders,
                         anns, paramType, errorLocation, false, hasRuntimeConverters, pathParameters,
                         currentMethodInfo.parameterName(i),
+                        consumes,
                         methodContext);
                 suspended |= parameterResult.isSuspended();
                 sse |= parameterResult.isSse();
@@ -468,7 +483,9 @@ public abstract class EndpointIndexer<T extends EndpointIndexer<T, PARAM, METHOD
                 }
             }
 
-            Type nonAsyncReturnType = getNonAsyncReturnType(currentMethodInfo.returnType());
+            Type nonAsyncReturnType = getNonAsyncReturnType(methodContext.containsKey(METHOD_CONTEXT_CUSTOM_RETURN_TYPE_KEY)
+                    ? (Type) methodContext.get(METHOD_CONTEXT_CUSTOM_RETURN_TYPE_KEY)
+                    : currentMethodInfo.returnType());
             addWriterForType(additionalWriters, nonAsyncReturnType);
 
             String[] produces = extractProducesConsumesValues(currentMethodInfo.annotation(PRODUCES), classProduces);
@@ -549,10 +566,14 @@ public abstract class EndpointIndexer<T extends EndpointIndexer<T, PARAM, METHOD
                 // the most specific annotation was the @NonBlocking annotation on the method
                 return false;
             }
-        } else if ((blockingAnnotation != null) && (nonBlockingAnnotation == null)) {
+        } else if ((blockingAnnotation != null)) {
             return true;
-        } else if ((nonBlockingAnnotation != null) && (blockingAnnotation == null)) {
+        } else if ((nonBlockingAnnotation != null)) {
             return false;
+        }
+        Map.Entry<AnnotationTarget, AnnotationInstance> transactional = getInheritableAnnotation(info, TRANSACTIONAL); //we treat this the same as blocking, as JTA is blocking, but it is lower priority
+        if (transactional != null) {
+            return true;
         }
         return defaultValue;
     }
@@ -609,11 +630,12 @@ public abstract class EndpointIndexer<T extends EndpointIndexer<T, PARAM, METHOD
             case VOID:
                 return returnType;
             case PARAMETERIZED_TYPE:
-                // NOTE: same code in QuarkusRestRecorder.getNonAsyncReturnType
+                // NOTE: same code in RuntimeResourceDeployment.getNonAsyncReturnType
                 ParameterizedType parameterizedType = returnType.asParameterizedType();
                 if (COMPLETION_STAGE.equals(parameterizedType.name())
                         || UNI.equals(parameterizedType.name())
-                        || MULTI.equals(parameterizedType.name())) {
+                        || MULTI.equals(parameterizedType.name())
+                        || REST_RESPONSE.equals(parameterizedType.name())) {
                     return parameterizedType.arguments().get(0);
                 }
                 return returnType;
@@ -790,6 +812,7 @@ public abstract class EndpointIndexer<T extends EndpointIndexer<T, PARAM, METHOD
             Map<String, String> existingConverters, AdditionalReaders additionalReaders,
             Map<DotName, AnnotationInstance> anns, Type paramType, String errorLocation, boolean field,
             boolean hasRuntimeConverters, Set<String> pathParameters, String sourceName,
+            String[] declaredConsumes,
             Map<String, Object> methodContext) {
         PARAM builder = createIndexedParam()
                 .setCurrentClassInfo(currentClassInfo)
@@ -917,7 +940,15 @@ public abstract class EndpointIndexer<T extends EndpointIndexer<T, PARAM, METHOD
                 if (field) {
                     return builder;
                 }
-                builder.setType(ParameterType.BODY);
+                if ((declaredConsumes != null) && (declaredConsumes.length == 1)
+                        && (MediaType.MULTIPART_FORM_DATA.equals(declaredConsumes[0]))) {
+                    // in this case it is safe to assume that we are consuming multipart data
+                    // we already don't allow multipart to be used along with body in the same method,
+                    // so this is completely safe
+                    builder.setType(ParameterType.MULTI_PART_FORM);
+                } else {
+                    builder.setType(ParameterType.BODY);
+                }
             }
         }
         builder.setSingle(true);

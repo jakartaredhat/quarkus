@@ -36,6 +36,7 @@
         <module>common-jpa-entities</module>
         <module>infinispan-client</module>
         <module>devtools</module>
+        <module>devtools-registry-client</module>
         <module>gradle</module>
         <module>main</module>
         <module>kafka</module>
@@ -66,8 +67,10 @@
         <module>hibernate-reactive-mysql</module>
         <module>hibernate-reactive-postgresql</module>
         <module>hibernate-reactive-panache</module>
+        <module>hibernate-reactive-panache-blocking</module>
         <module>hibernate-search-orm-elasticsearch</module>
-        <module>hibernate-tenancy</module>
+        <module>hibernate-search-orm-elasticsearch-aws</module>
+        <module>hibernate-orm-tenancy</module>
         <module>hibernate-orm-envers</module>
         <module>vertx-http</module>
         <module>vertx-web</module>
@@ -99,6 +102,7 @@
         <module>reactive-db2-client</module>
         <module>reactive-pg-client</module>
         <module>reactive-mysql-client</module>
+        <module>reactive-mssql-client</module>
         <module>amazon-services</module>
         <module>test-extension</module>
         <module>amazon-lambda</module>
@@ -141,6 +145,7 @@
         <module>smallrye-metrics</module>
         <module>smallrye-graphql</module>
         <module>smallrye-graphql-client</module>
+        <module>smallrye-opentracing</module>
         <module>jpa-without-entity</module>
         <module>quartz</module>
         <module>redis-client</module>
@@ -327,4 +332,3 @@
         </profile>
     </profiles>
 </project>
-
