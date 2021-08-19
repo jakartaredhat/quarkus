@@ -173,7 +173,7 @@ public abstract class EndpointIndexer<T extends EndpointIndexer<T, PARAM, METHOD
     protected final AdditionalReaders additionalReaders;
     private final Map<DotName, String> httpAnnotationToMethod;
     private final AdditionalWriters additionalWriters;
-    private final boolean defaultBlocking;
+    private final BlockingDefault defaultBlocking;
     private final Map<DotName, Map<String, String>> classLevelExceptionMappers;
     private final Function<String, BeanFactory<Object>> factoryCreator;
     private final Consumer<Map.Entry<MethodInfo, ResourceMethod>> resourceMethodCallback;
@@ -511,7 +511,9 @@ public abstract class EndpointIndexer<T extends EndpointIndexer<T, PARAM, METHOD
                 MethodInfo actualMethodInfo = actualEndpointInfo.method(currentMethodInfo.name(),
                         currentMethodInfo.parameters().toArray(new Type[0]));
                 if (actualMethodInfo != null) {
-                    blocking = isBlocking(actualMethodInfo, blocking);
+                    //we don't pass AUTOMATIC here, as the method signature would be the same, so the same determination
+                    //would be reached for a default
+                    blocking = isBlocking(actualMethodInfo, blocking ? BlockingDefault.BLOCKING : BlockingDefault.NON_BLOCKING);
                 }
             }
 
@@ -554,7 +556,7 @@ public abstract class EndpointIndexer<T extends EndpointIndexer<T, PARAM, METHOD
 
     }
 
-    private boolean isBlocking(MethodInfo info, boolean defaultValue) {
+    private boolean isBlocking(MethodInfo info, BlockingDefault defaultValue) {
         Map.Entry<AnnotationTarget, AnnotationInstance> blockingAnnotation = getInheritableAnnotation(info, BLOCKING);
         Map.Entry<AnnotationTarget, AnnotationInstance> nonBlockingAnnotation = getInheritableAnnotation(info,
                 NON_BLOCKING);
@@ -575,7 +577,16 @@ public abstract class EndpointIndexer<T extends EndpointIndexer<T, PARAM, METHOD
         if (transactional != null) {
             return true;
         }
-        return defaultValue;
+        if (defaultValue == BlockingDefault.BLOCKING) {
+            return true;
+        } else if (defaultValue == BlockingDefault.NON_BLOCKING) {
+            return false;
+        }
+        return doesMethodHaveBlockingSignature(info);
+    }
+
+    protected boolean doesMethodHaveBlockingSignature(MethodInfo info) {
+        return true;
     }
 
     protected void handleMultipart(ClassInfo multipartClassInfo) {
@@ -933,6 +944,8 @@ public abstract class EndpointIndexer<T extends EndpointIndexer<T, PARAM, METHOD
             } else if (!field && pathParameters.contains(sourceName)) {
                 builder.setName(sourceName);
                 builder.setType(ParameterType.PATH);
+                builder.setErrorLocation(builder.getErrorLocation()
+                        + " (this parameter name matches the @Path parameter name, so it has been implicitly assumed to be an @PathParam and not the request body)");
                 convertible = true;
             } else {
                 //un-annotated field
@@ -945,7 +958,14 @@ public abstract class EndpointIndexer<T extends EndpointIndexer<T, PARAM, METHOD
                     // in this case it is safe to assume that we are consuming multipart data
                     // we already don't allow multipart to be used along with body in the same method,
                     // so this is completely safe
-                    builder.setType(ParameterType.MULTI_PART_FORM);
+                    var type = toClassName(paramType, currentClassInfo, actualEndpointInfo, index);
+                    var typeInfo = index.getClassByName(DotName.createSimple(type));
+                    if (typeInfo != null && typeInfo.annotations().containsKey(REST_FORM_PARAM)) {
+                        builder.setType(ParameterType.MULTI_PART_FORM);
+                    } else {
+                        //if the paramater does not have @RestForm annotations we treat it as a normal body
+                        builder.setType(ParameterType.BODY);
+                    }
                 } else {
                     builder.setType(ParameterType.BODY);
                 }
@@ -1075,7 +1095,7 @@ public abstract class EndpointIndexer<T extends EndpointIndexer<T, PARAM, METHOD
     @SuppressWarnings({ "unchecked", "rawtypes" })
     public static abstract class Builder<T extends EndpointIndexer<T, ?, METHOD>, B extends Builder<T, B, METHOD>, METHOD extends ResourceMethod> {
         private Function<String, BeanFactory<Object>> factoryCreator = new ReflectionBeanFactoryCreator();
-        private boolean defaultBlocking;
+        private BlockingDefault defaultBlocking = BlockingDefault.AUTOMATIC;
         private IndexView index;
         private Map<String, String> existingConverters;
         private Map<DotName, String> scannedResourcePaths;
@@ -1088,7 +1108,7 @@ public abstract class EndpointIndexer<T extends EndpointIndexer<T, PARAM, METHOD
         private Map<DotName, Map<String, String>> classLevelExceptionMappers;
         private Consumer<Map.Entry<MethodInfo, ResourceMethod>> resourceMethodCallback;
 
-        public B setDefaultBlocking(boolean defaultBlocking) {
+        public B setDefaultBlocking(BlockingDefault defaultBlocking) {
             this.defaultBlocking = defaultBlocking;
             return (B) this;
         }

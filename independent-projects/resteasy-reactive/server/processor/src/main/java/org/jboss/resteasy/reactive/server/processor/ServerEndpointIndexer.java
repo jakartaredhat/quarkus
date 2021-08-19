@@ -145,6 +145,15 @@ public class ServerEndpointIndexer
         return injectableBean.isFormParamRequired();
     }
 
+    protected boolean doesMethodHaveBlockingSignature(MethodInfo info) {
+        for (var i : methodScanners) {
+            if (i.isMethodSignatureAsync(info)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     @Override
     protected void handleAdditionalMethodProcessing(ServerResourceMethod method, ClassInfo currentClassInfo, MethodInfo info) {
         Supplier<EndpointInvoker> invokerSupplier = null;
@@ -260,8 +269,13 @@ public class ServerEndpointIndexer
 
     protected void handleOtherParam(Map<String, String> existingConverters, String errorLocation, boolean hasRuntimeConverters,
             ServerIndexedParameter builder, String elementType) {
-        builder.setConverter(extractConverter(elementType, index,
-                existingConverters, errorLocation, hasRuntimeConverters));
+        try {
+            builder.setConverter(extractConverter(elementType, index,
+                    existingConverters, errorLocation, hasRuntimeConverters));
+        } catch (Throwable throwable) {
+            throw new RuntimeException("Could not create converter for " + elementType + " for " + builder.getErrorLocation()
+                    + " of type " + builder.getType());
+        }
     }
 
     protected void handleSortedSetParam(Map<String, String> existingConverters, String errorLocation,

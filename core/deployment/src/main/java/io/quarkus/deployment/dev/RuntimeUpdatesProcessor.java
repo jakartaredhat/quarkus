@@ -99,6 +99,7 @@ public class RuntimeUpdatesProcessor implements HotReplacementContext, Closeable
     private final List<Runnable> preScanSteps = new CopyOnWriteArrayList<>();
     private final List<Consumer<Set<String>>> noRestartChangesConsumers = new CopyOnWriteArrayList<>();
     private final List<HotReplacementSetup> hotReplacementSetup = new ArrayList<>();
+    private final List<Runnable> deploymentFailedStartHandlers = new ArrayList<>();
     private final BiConsumer<Set<String>, ClassScanResult> restartCallback;
     private final BiConsumer<DevModeContext.ModuleInfo, String> copyResourceNotification;
     private final BiFunction<String, byte[], byte[]> classTransformers;
@@ -238,9 +239,9 @@ public class RuntimeUpdatesProcessor implements HotReplacementContext, Closeable
                             testClassChangeWatcher.watchPath(path.toFile(), callback);
                         }
                     }
+                    testClassChangeTimer = new Timer("Test Compile Timer", true);
                     if (!nonExistent.isEmpty()) {
                         {
-                            testClassChangeTimer = new Timer("Test Compile Timer", true);
                             testClassChangeTimer.schedule(new TimerTask() {
                                 @Override
                                 public void run() {
@@ -261,7 +262,16 @@ public class RuntimeUpdatesProcessor implements HotReplacementContext, Closeable
                             }, 1, 1000);
                         }
                     }
-                    periodicTestCompile();
+                    //this can't be called directly because of the deadlock risk
+                    //this can happen on a hot reload, if you have changed the config to make testing 'enabled'
+                    //the thread doing the reload already holds the lock, so a deadlock would result
+                    testClassChangeTimer.schedule(new TimerTask() {
+                        @Override
+                        public void run() {
+                            periodicTestCompile();
+                        }
+                    }, 0);
+
                 } else {
                     testClassChangeTimer = new Timer("Test Compile Timer", true);
                     testClassChangeTimer.schedule(new TimerTask() {
@@ -479,8 +489,13 @@ public class RuntimeUpdatesProcessor implements HotReplacementContext, Closeable
                     || (IsolatedDevModeMain.deploymentProblem != null && userInitiated) || configFileRestartNeeded);
             if (restartNeeded) {
                 String changeString = changedFilesForRestart.stream().map(Path::getFileName).map(Object::toString)
-                        .collect(Collectors.joining(", ")) + ".";
-                log.infof("Restarting quarkus due to changes in " + changeString);
+                        .collect(Collectors.joining(", "));
+                if (!changeString.isEmpty()) {
+                    log.infof("Restarting quarkus due to changes in %s.", changeString);
+                } else if (forceRestart && userInitiated) {
+                    log.info("Restarting as requested by the user.");
+                }
+
                 restartCallback.accept(filesChanged, changedClassResults);
                 long timeNanoSeconds = System.nanoTime() - startNanoseconds;
                 log.infof("Live reload total time: %ss ", Timing.convertToBigDecimalSeconds(timeNanoSeconds));
@@ -1042,9 +1057,16 @@ public class RuntimeUpdatesProcessor implements HotReplacementContext, Closeable
         hotReplacementSetup.add(service);
     }
 
+    public void addDeploymentFailedStartHandler(Runnable service) {
+        deploymentFailedStartHandlers.add(service);
+    }
+
     public void startupFailed() {
         for (HotReplacementSetup i : hotReplacementSetup) {
             i.handleFailedInitialStart();
+        }
+        for (Runnable i : deploymentFailedStartHandlers) {
+            i.run();
         }
         //if startup failed we always do a class loader based restart
         lastStartIndex = null;

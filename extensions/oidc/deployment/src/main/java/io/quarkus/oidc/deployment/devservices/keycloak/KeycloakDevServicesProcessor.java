@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
+import java.util.stream.Collectors;
 
 import org.eclipse.microprofile.config.ConfigProvider;
 import org.jboss.logging.Logger;
@@ -27,7 +28,9 @@ import org.keycloak.representations.idm.UserRepresentation;
 import org.keycloak.util.JsonSerialization;
 import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.Network;
 import org.testcontainers.containers.wait.strategy.Wait;
+import org.testcontainers.utility.Base58;
 import org.testcontainers.utility.DockerImageName;
 
 import io.quarkus.bootstrap.classloading.QuarkusClassLoader;
@@ -35,15 +38,16 @@ import io.quarkus.deployment.IsDockerWorking;
 import io.quarkus.deployment.IsNormal;
 import io.quarkus.deployment.annotations.BuildProducer;
 import io.quarkus.deployment.annotations.BuildStep;
-import io.quarkus.deployment.builditem.DevServicesNativeConfigResultBuildItem;
-import io.quarkus.deployment.builditem.LaunchModeBuildItem;
-import io.quarkus.deployment.builditem.RunTimeConfigurationDefaultBuildItem;
+import io.quarkus.deployment.builditem.DevServicesConfigResultBuildItem;
+import io.quarkus.deployment.builditem.DevServicesSharedNetworkBuildItem;
+import io.quarkus.deployment.dev.devservices.GlobalDevServicesConfig;
 import io.quarkus.oidc.deployment.OidcBuildStep.IsEnabled;
 import io.quarkus.oidc.deployment.devservices.OidcDevServicesBuildItem;
 import io.quarkus.runtime.configuration.ConfigUtils;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.mutiny.core.buffer.Buffer;
+import io.vertx.mutiny.ext.web.client.HttpResponse;
 import io.vertx.mutiny.ext.web.client.WebClient;
 
 public class KeycloakDevServicesProcessor {
@@ -77,10 +81,10 @@ public class KeycloakDevServicesProcessor {
     private static volatile FileTime capturedRealmFileLastModifiedDate;
     private final IsDockerWorking isDockerWorking = new IsDockerWorking(true);
 
-    @BuildStep(onlyIfNot = IsNormal.class, onlyIf = IsEnabled.class)
-    public DevServicesConfigBuildItem startKeycloakContainer(LaunchModeBuildItem launchMode,
-            BuildProducer<RunTimeConfigurationDefaultBuildItem> runTimeConfiguration,
-            BuildProducer<DevServicesNativeConfigResultBuildItem> devServices,
+    @BuildStep(onlyIfNot = IsNormal.class, onlyIf = { IsEnabled.class, GlobalDevServicesConfig.Enabled.class })
+    public KeycloakDevServicesConfigBuildItem startKeycloakContainer(
+            Optional<DevServicesSharedNetworkBuildItem> devServicesSharedNetworkBuildItem,
+            BuildProducer<DevServicesConfigResultBuildItem> devServices,
             Optional<OidcDevServicesBuildItem> oidcProviderBuildItem,
             KeycloakBuildTimeConfig config) {
 
@@ -104,7 +108,7 @@ public class KeycloakDevServicesProcessor {
                 }
             }
             if (!restartRequired) {
-                return prepareConfiguration(false, runTimeConfiguration, devServices);
+                return null;
             }
             for (Closeable closeable : closeables) {
                 try {
@@ -119,7 +123,7 @@ public class KeycloakDevServicesProcessor {
         }
         capturedDevServicesConfiguration = currentDevServicesConfiguration;
 
-        StartResult startResult = startContainer();
+        StartResult startResult = startContainer(devServicesSharedNetworkBuildItem.isPresent());
         if (startResult == null) {
             return null;
         }
@@ -171,12 +175,11 @@ public class KeycloakDevServicesProcessor {
             vertxInstance = Vertx.vertx();
         }
         capturedRealmFileLastModifiedDate = getRealmFileLastModifiedDate(capturedDevServicesConfiguration.realmPath);
-        return prepareConfiguration(!startResult.realmFileExists, runTimeConfiguration, devServices);
+        return prepareConfiguration(!startResult.realmFileExists, devServices);
     }
 
-    private DevServicesConfigBuildItem prepareConfiguration(boolean createRealm,
-            BuildProducer<RunTimeConfigurationDefaultBuildItem> runTimeConfiguration,
-            BuildProducer<DevServicesNativeConfigResultBuildItem> devServices) {
+    private KeycloakDevServicesConfigBuildItem prepareConfiguration(boolean createRealm,
+            BuildProducer<DevServicesConfigResultBuildItem> devServices) {
         final String authServerUrl = capturedKeycloakUrl + "/realms/" + capturedDevServicesConfiguration.realmName;
 
         String oidcClientId = getOidcClientId();
@@ -187,19 +190,11 @@ public class KeycloakDevServicesProcessor {
         if (createRealm) {
             createRealm(capturedKeycloakUrl, users, oidcClientId, oidcClientSecret);
         }
-
-        runTimeConfiguration.produce(new RunTimeConfigurationDefaultBuildItem(KEYCLOAK_URL_KEY, capturedKeycloakUrl));
-        runTimeConfiguration.produce(new RunTimeConfigurationDefaultBuildItem(AUTH_SERVER_URL_CONFIG_KEY, authServerUrl));
-        runTimeConfiguration
-                .produce(new RunTimeConfigurationDefaultBuildItem(APPLICATION_TYPE_CONFIG_KEY, oidcApplicationType));
-        runTimeConfiguration.produce(new RunTimeConfigurationDefaultBuildItem(CLIENT_ID_CONFIG_KEY, oidcClientId));
-        runTimeConfiguration.produce(new RunTimeConfigurationDefaultBuildItem(CLIENT_SECRET_CONFIG_KEY, oidcClientSecret));
-
-        devServices.produce(new DevServicesNativeConfigResultBuildItem(KEYCLOAK_URL_KEY, capturedKeycloakUrl));
-        devServices.produce(new DevServicesNativeConfigResultBuildItem(AUTH_SERVER_URL_CONFIG_KEY, capturedKeycloakUrl));
-        devServices.produce(new DevServicesNativeConfigResultBuildItem(APPLICATION_TYPE_CONFIG_KEY, oidcApplicationType));
-        devServices.produce(new DevServicesNativeConfigResultBuildItem(CLIENT_ID_CONFIG_KEY, oidcClientId));
-        devServices.produce(new DevServicesNativeConfigResultBuildItem(CLIENT_SECRET_CONFIG_KEY, oidcClientSecret));
+        devServices.produce(new DevServicesConfigResultBuildItem(KEYCLOAK_URL_KEY, capturedKeycloakUrl));
+        devServices.produce(new DevServicesConfigResultBuildItem(AUTH_SERVER_URL_CONFIG_KEY, authServerUrl));
+        devServices.produce(new DevServicesConfigResultBuildItem(APPLICATION_TYPE_CONFIG_KEY, oidcApplicationType));
+        devServices.produce(new DevServicesConfigResultBuildItem(CLIENT_ID_CONFIG_KEY, oidcClientId));
+        devServices.produce(new DevServicesConfigResultBuildItem(CLIENT_SECRET_CONFIG_KEY, oidcClientSecret));
 
         Map<String, Object> configProperties = new HashMap<>();
         configProperties.put(KEYCLOAK_URL_KEY, capturedKeycloakUrl);
@@ -209,10 +204,10 @@ public class KeycloakDevServicesProcessor {
         configProperties.put(CLIENT_SECRET_CONFIG_KEY, oidcClientSecret);
         configProperties.put(OIDC_USERS, users);
 
-        return new DevServicesConfigBuildItem(configProperties);
+        return new KeycloakDevServicesConfigBuildItem(configProperties);
     }
 
-    private StartResult startContainer() {
+    private StartResult startContainer(boolean useSharedContainer) {
         if (!capturedDevServicesConfiguration.enabled) {
             // explicitly disabled
             LOG.debug("Not starting devservices for Keycloak as it has been disabled in the config");
@@ -235,8 +230,9 @@ public class KeycloakDevServicesProcessor {
         String imageName = capturedDevServicesConfiguration.imageName.get();
         DockerImageName dockerImageName = DockerImageName.parse(imageName)
                 .asCompatibleSubstituteFor(imageName);
-        FixedPortOidcContainer oidcContainer = new FixedPortOidcContainer(dockerImageName,
+        QuarkusOidcContainer oidcContainer = new QuarkusOidcContainer(dockerImageName,
                 capturedDevServicesConfiguration.port,
+                useSharedContainer,
                 capturedDevServicesConfiguration.realmPath);
 
         oidcContainer.start();
@@ -264,24 +260,37 @@ public class KeycloakDevServicesProcessor {
         }
     }
 
-    private static class FixedPortOidcContainer extends GenericContainer {
-        OptionalInt fixedExposedPort;
-        Optional<String> realm;
-        boolean realmFileExists;
+    private static class QuarkusOidcContainer extends GenericContainer {
+        private final OptionalInt fixedExposedPort;
+        private final boolean useSharedNetwork;
+        private final Optional<String> realm;
+        private boolean realmFileExists;
+        private String hostName = null;
 
-        public FixedPortOidcContainer(DockerImageName dockerImageName, OptionalInt fixedExposedPort, Optional<String> realm) {
+        public QuarkusOidcContainer(DockerImageName dockerImageName, OptionalInt fixedExposedPort, boolean useSharedNetwork,
+                Optional<String> realm) {
             super(dockerImageName);
             this.fixedExposedPort = fixedExposedPort;
+            this.useSharedNetwork = useSharedNetwork;
             this.realm = realm;
         }
 
         @Override
         protected void configure() {
             super.configure();
-            if (fixedExposedPort.isPresent()) {
-                addFixedExposedPort(fixedExposedPort.getAsInt(), KEYCLOAK_EXPOSED_PORT);
+            if (useSharedNetwork) {
+                // When a shared network is requested for the launched containers, we need to configure
+                // the container to use it. We also need to create a hostname that will be applied to the returned
+                // Keycloak URL
+                setNetwork(Network.SHARED);
+                hostName = "keycloak-" + Base58.randomString(5);
+                setNetworkAliases(Collections.singletonList(hostName));
             } else {
-                addExposedPort(KEYCLOAK_EXPOSED_PORT);
+                if (fixedExposedPort.isPresent()) {
+                    addFixedExposedPort(fixedExposedPort.getAsInt(), KEYCLOAK_EXPOSED_PORT);
+                } else {
+                    addExposedPort(KEYCLOAK_EXPOSED_PORT);
+                }
             }
 
             addEnv(KEYCLOAK_USER_PROP, KEYCLOAK_ADMIN_USER);
@@ -308,7 +317,18 @@ public class KeycloakDevServicesProcessor {
             super.setWaitStrategy(Wait.forHttp("/auth").forPort(KEYCLOAK_EXPOSED_PORT));
         }
 
+        @Override
+        public String getHost() {
+            if (useSharedNetwork) {
+                return hostName;
+            }
+            return super.getHost();
+        }
+
         public int getPort() {
+            if (useSharedNetwork) {
+                return KEYCLOAK_EXPOSED_PORT;
+            }
             if (fixedExposedPort.isPresent()) {
                 return fixedExposedPort.getAsInt();
             }
@@ -342,11 +362,16 @@ public class KeycloakDevServicesProcessor {
                     keycloakUrl + "/realms/master/protocol/openid-connect/token",
                     "admin-cli", null, "admin", "admin", capturedDevServicesConfiguration.webClienTimeout);
 
-            client.postAbs(keycloakUrl + "/admin/realms")
+            HttpResponse<Buffer> response = client.postAbs(keycloakUrl + "/admin/realms")
                     .putHeader(HttpHeaders.CONTENT_TYPE.toString(), "application/json")
                     .putHeader(HttpHeaders.AUTHORIZATION.toString(), "Bearer " + token)
                     .sendBuffer(Buffer.buffer().appendString(JsonSerialization.writeValueAsString(realm)))
                     .await().atMost(capturedDevServicesConfiguration.webClienTimeout);
+
+            if (response.statusCode() > 299) {
+                LOG.errorf("Realm %s can not be created %d - %s ", realm.getRealm(), response.statusCode(),
+                        response.statusMessage());
+            }
         } catch (Throwable t) {
             LOG.errorf("Realm %s can not be created: %s", realm.getRealm(), t.getMessage());
         } finally {
@@ -389,7 +414,9 @@ public class KeycloakDevServicesProcessor {
             realm.getRoles().getRealm().add(new RoleRepresentation("user", null, false));
             realm.getRoles().getRealm().add(new RoleRepresentation("admin", null, false));
         } else {
-            for (String role : capturedDevServicesConfiguration.roles.values()) {
+            List<String> distinctRoles = capturedDevServicesConfiguration.roles.values().stream().distinct()
+                    .collect(Collectors.toList());
+            for (String role : distinctRoles) {
                 realm.getRoles().getRealm().add(new RoleRepresentation(role, null, false));
             }
         }

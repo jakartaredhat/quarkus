@@ -52,11 +52,12 @@ import io.quarkus.deployment.annotations.Consume;
 import io.quarkus.deployment.annotations.ExecutionTime;
 import io.quarkus.deployment.annotations.Produce;
 import io.quarkus.deployment.annotations.Record;
+import io.quarkus.deployment.builditem.ConfigDescriptionBuildItem;
 import io.quarkus.deployment.builditem.LaunchModeBuildItem;
 import io.quarkus.deployment.builditem.LiveReloadBuildItem;
-import io.quarkus.deployment.builditem.LogHandlerBuildItem;
 import io.quarkus.deployment.builditem.ServiceStartBuildItem;
 import io.quarkus.deployment.builditem.ShutdownContextBuildItem;
+import io.quarkus.deployment.builditem.WebSocketLogHandlerBuildItem;
 import io.quarkus.deployment.console.ConsoleCommand;
 import io.quarkus.deployment.console.ConsoleStateManager;
 import io.quarkus.deployment.ide.EffectiveIdeBuildItem;
@@ -100,8 +101,8 @@ import io.quarkus.vertx.http.runtime.devmode.DevConsoleFilter;
 import io.quarkus.vertx.http.runtime.devmode.DevConsoleRecorder;
 import io.quarkus.vertx.http.runtime.devmode.RedirectHandler;
 import io.quarkus.vertx.http.runtime.devmode.RuntimeDevConsoleRoute;
-import io.quarkus.vertx.http.runtime.logstream.HistoryHandler;
 import io.quarkus.vertx.http.runtime.logstream.LogStreamRecorder;
+import io.quarkus.vertx.http.runtime.logstream.WebSocketLogHandler;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.VertxOptions;
@@ -326,11 +327,13 @@ public class DevConsoleProcessor {
 
     @BuildStep(onlyIf = IsDevelopment.class)
     @Record(ExecutionTime.STATIC_INIT)
-    public HistoryHandlerBuildItem handler(BuildProducer<LogHandlerBuildItem> logHandlerBuildItemBuildProducer,
+    public void handler(BuildProducer<HistoryHandlerBuildItem> historyProducer,
+            BuildProducer<WebSocketLogHandlerBuildItem> webSocketLogHandlerBuildItem,
             LogStreamRecorder recorder, DevUIConfig devUiConfig) {
-        RuntimeValue<Optional<HistoryHandler>> handler = recorder.handler(devUiConfig.historySize);
-        logHandlerBuildItemBuildProducer.produce(new LogHandlerBuildItem((RuntimeValue) handler));
-        return new HistoryHandlerBuildItem(handler);
+        RuntimeValue<Optional<WebSocketLogHandler>> handler = recorder.logHandler(devUiConfig.historySize);
+
+        webSocketLogHandlerBuildItem.produce(new WebSocketLogHandlerBuildItem((RuntimeValue) handler));
+        historyProducer.produce(new HistoryHandlerBuildItem(handler));
     }
 
     @Consume(LoggingSetupBuildItem.class)
@@ -341,7 +344,9 @@ public class DevConsoleProcessor {
             Optional<EffectiveIdeBuildItem> effectiveIdeBuildItem,
             List<RouteBuildItem> allRoutes,
             List<DevConsoleRouteBuildItem> routes,
-            NonApplicationRootPathBuildItem nonApplicationRootPathBuildItem, LaunchModeBuildItem launchModeBuildItem) {
+            NonApplicationRootPathBuildItem nonApplicationRootPathBuildItem,
+            List<ConfigDescriptionBuildItem> configDescriptionBuildItems,
+            LaunchModeBuildItem launchModeBuildItem) {
         if (launchModeBuildItem.getDevModeType().orElse(null) != DevModeType.LOCAL) {
             return null;
         }
@@ -352,6 +357,7 @@ public class DevConsoleProcessor {
                 buildSystemTargetBuildItem,
                 effectiveIdeBuildItem,
                 nonApplicationRootPathBuildItem,
+                configDescriptionBuildItems,
                 launchModeBuildItem);
         newRouter(quteEngine, nonApplicationRootPathBuildItem);
 
@@ -483,13 +489,13 @@ public class DevConsoleProcessor {
         try {
             switch (os) {
                 case MAC:
-                    rt.exec("open " + url);
+                    rt.exec(new String[] { "open", url });
                     break;
                 case LINUX:
-                    rt.exec("xdg-open " + url);
+                    rt.exec(new String[] { "xdg-open", url });
                     break;
                 case WINDOWS:
-                    rt.exec("rundll32 url.dll,FileProtocolHandler " + url);
+                    rt.exec(new String[] { "rundll32", "url.dll,FileProtocolHandler", url });
                     break;
                 case OTHER:
                     log.error("Cannot launch browser on this operating system");
@@ -504,7 +510,9 @@ public class DevConsoleProcessor {
             List<RouteBuildItem> allRoutes,
             BuildSystemTargetBuildItem buildSystemTargetBuildItem,
             Optional<EffectiveIdeBuildItem> effectiveIdeBuildItem,
-            NonApplicationRootPathBuildItem nonApplicationRootPathBuildItem, LaunchModeBuildItem launchModeBuildItem) {
+            NonApplicationRootPathBuildItem nonApplicationRootPathBuildItem,
+            List<ConfigDescriptionBuildItem> configDescriptionBuildItems,
+            LaunchModeBuildItem launchModeBuildItem) {
         EngineBuilder builder = Engine.builder().addDefaults();
 
         // Escape some characters for HTML templates
@@ -542,6 +550,8 @@ public class DevConsoleProcessor {
             }
         }
 
+        Map<String, String> defaultValues = getDefaultValues(configDescriptionBuildItems);
+
         // {config:property('quarkus.lambda.handler')}
         // {config:http-path('quarkus.smallrye-graphql.ui.root-path')}
         // Note that the output value is always string!
@@ -557,8 +567,9 @@ public class DevConsoleProcessor {
                 });
             } else {
                 return ctx.evaluate(params.get(0)).thenCompose(propertyName -> {
-                    Optional<String> val = ConfigProvider.getConfig().getOptionalValue(propertyName.toString(), String.class);
-                    return CompletableFuture.completedFuture(val.isPresent() ? val.get() : Results.NotFound.from(ctx));
+                    String val = ConfigProvider.getConfig().getOptionalValue(propertyName.toString(), String.class)
+                            .orElse(defaultValues.get(propertyName.toString()));
+                    return CompletableFuture.completedFuture(val != null ? val : Results.NotFound.from(ctx));
                 });
             }
         }).build());
@@ -626,6 +637,17 @@ public class DevConsoleProcessor {
             }
         }
         return engine;
+    }
+
+    private Map<String, String> getDefaultValues(List<ConfigDescriptionBuildItem> configDescriptionBuildItems) {
+        Map<String, String> defaultValues = new HashMap();
+
+        for (ConfigDescriptionBuildItem configDescriptionBuildItem : configDescriptionBuildItems) {
+            if (configDescriptionBuildItem.getDefaultValue() != null) {
+                defaultValues.put(configDescriptionBuildItem.getPropertyName(), configDescriptionBuildItem.getDefaultValue());
+            }
+        }
+        return defaultValues;
     }
 
     private static Optional<TemplateLocator.TemplateLocation> locateTemplate(String id, Map<String, String> templates) {
@@ -788,9 +810,9 @@ public class DevConsoleProcessor {
     }
 
     public static final class HistoryHandlerBuildItem extends SimpleBuildItem {
-        final RuntimeValue<Optional<HistoryHandler>> value;
+        final RuntimeValue<Optional<WebSocketLogHandler>> value;
 
-        public HistoryHandlerBuildItem(RuntimeValue<Optional<HistoryHandler>> value) {
+        public HistoryHandlerBuildItem(RuntimeValue<Optional<WebSocketLogHandler>> value) {
             this.value = value;
         }
     }

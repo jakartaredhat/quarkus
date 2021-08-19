@@ -13,6 +13,7 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Enumeration;
@@ -117,8 +118,10 @@ import io.quarkus.hibernate.orm.runtime.boot.QuarkusPersistenceUnitDefinition;
 import io.quarkus.hibernate.orm.runtime.boot.scan.QuarkusScanner;
 import io.quarkus.hibernate.orm.runtime.boot.xml.RecordableXmlMapping;
 import io.quarkus.hibernate.orm.runtime.cdi.QuarkusArcBeanContainer;
+import io.quarkus.hibernate.orm.runtime.devconsole.HibernateOrmDevConsoleIntegrator;
 import io.quarkus.hibernate.orm.runtime.integration.HibernateOrmIntegrationStaticDescriptor;
 import io.quarkus.hibernate.orm.runtime.proxies.PreGeneratedProxies;
+import io.quarkus.hibernate.orm.runtime.schema.SchemaManagementIntegrator;
 import io.quarkus.hibernate.orm.runtime.tenant.DataSourceTenantConnectionResolver;
 import io.quarkus.hibernate.orm.runtime.tenant.TenantConnectionResolver;
 import io.quarkus.panache.common.deployment.HibernateEnhancersRegisteredBuildItem;
@@ -423,7 +426,8 @@ public final class HibernateOrmProcessor {
             List<HibernateOrmIntegrationStaticConfiguredBuildItem> integrationBuildItems,
             ProxyDefinitionsBuildItem proxyDefinitions,
             BuildProducer<FeatureBuildItem> feature,
-            BuildProducer<BeanContainerListenerBuildItem> beanContainerListener) throws Exception {
+            BuildProducer<BeanContainerListenerBuildItem> beanContainerListener,
+            LaunchModeBuildItem launchMode) throws Exception {
 
         feature.produce(new FeatureBuildItem(Feature.HIBERNATE_ORM));
         validateHibernatePropertiesNotUsed();
@@ -453,6 +457,10 @@ public final class HibernateOrmProcessor {
         Collection<Class<? extends Integrator>> integratorClasses = new LinkedHashSet<>();
         for (String integratorClassName : ServiceUtil.classNamesNamedIn(classLoader, INTEGRATOR_SERVICE_FILE)) {
             integratorClasses.add((Class<? extends Integrator>) recorderContext.classProxy(integratorClassName));
+        }
+        if (launchMode.getLaunchMode() == LaunchMode.DEVELOPMENT) {
+            integratorClasses.add(HibernateOrmDevConsoleIntegrator.class);
+            integratorClasses.add(SchemaManagementIntegrator.class);
         }
 
         Map<String, List<HibernateOrmIntegrationStaticDescriptor>> integrationStaticDescriptors = HibernateOrmIntegrationStaticConfiguredBuildItem
@@ -782,7 +790,9 @@ public final class HibernateOrmProcessor {
                     "Model classes are defined for the default persistence unit, but no default datasource was found."
                             + " The default EntityManagerFactory will not be created."
                             + " To solve this, configure the default datasource."
-                            + " Refer to https://quarkus.io/guides/datasource for guidance.");
+                            + " Refer to https://quarkus.io/guides/datasource for guidance.",
+                    new HashSet<>(Arrays.asList("quarkus.datasource.db-kind", "quarkus.datasource.username",
+                            "quarkus.datasource.password", "quarkus.datasource.jdbc.url")));
         }
 
         for (Entry<String, HibernateOrmConfigPersistenceUnit> persistenceUnitEntry : hibernateOrmConfig.persistenceUnits
@@ -840,12 +850,15 @@ public final class HibernateOrmProcessor {
                                 + HibernateOrmConfig.puPropertyKey(persistenceUnitName, "dialect") + "'.",
                         persistenceUnitName));
             }
+
         } else {
             if (!jdbcDataSource.isPresent()) {
                 throw new ConfigurationException(String.format(Locale.ROOT,
                         "Datasource must be defined for persistence unit '%s'."
                                 + " Refer to https://quarkus.io/guides/datasource for guidance.",
-                        persistenceUnitName));
+                        persistenceUnitName),
+                        new HashSet<>(Arrays.asList("quarkus.datasource.db-kind", "quarkus.datasource.username",
+                                "quarkus.datasource.password", "quarkus.datasource.jdbc.url")));
             }
             if (explicitDialect.isPresent()) {
                 dialect = explicitDialect.get();

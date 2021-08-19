@@ -21,6 +21,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -61,6 +62,8 @@ public class CuratedApplication implements Serializable, AutoCloseable {
     private final ConfiguredClassLoading configuredClassLoading;
 
     final AppModel appModel;
+
+    final AtomicInteger runtimeClassLoaderCount = new AtomicInteger();
 
     CuratedApplication(QuarkusBootstrap quarkusBootstrap, CurationResult curationResult,
             ConfiguredClassLoading configuredClassLoading) {
@@ -114,6 +117,7 @@ public class CuratedApplication implements Serializable, AutoCloseable {
         try {
             Class<?> augmentor = getAugmentClassLoader().loadClass(AUGMENTOR);
             Function<Object, List<?>> function = (Function<Object, List<?>>) getAugmentClassLoader().loadClass(functionName)
+                    .getDeclaredConstructor()
                     .newInstance();
             List<?> res = function.apply(props);
             return (AugmentAction) augmentor.getConstructor(CuratedApplication.class, List.class).newInstance(this, res);
@@ -129,7 +133,7 @@ public class CuratedApplication implements Serializable, AutoCloseable {
             Thread.currentThread().setContextClassLoader(cl);
             Class<? extends BiConsumer<CuratedApplication, Map<String, Object>>> clazz = (Class<? extends BiConsumer<CuratedApplication, Map<String, Object>>>) cl
                     .loadClass(consumerName);
-            BiConsumer<CuratedApplication, Map<String, Object>> biConsumer = clazz.newInstance();
+            BiConsumer<CuratedApplication, Map<String, Object>> biConsumer = clazz.getDeclaredConstructor().newInstance();
             biConsumer.accept(this, params);
             return biConsumer;
         } catch (Exception e) {
@@ -199,7 +203,11 @@ public class CuratedApplication implements Serializable, AutoCloseable {
                 if (configuredClassLoading.reloadableArtifacts.contains(i.getArtifact().getKey())) {
                     continue;
                 }
-                processCpElement(i.getArtifact(), element -> addCpElement(builder, i.getArtifact(), element));
+                if (configuredClassLoading.removedArtifacts.contains(i.getArtifact().getKey())) {
+                    processCpElement(i.getArtifact(), builder::addBannedElement);
+                } else {
+                    processCpElement(i.getArtifact(), element -> addCpElement(builder, i.getArtifact(), element));
+                }
             }
 
             for (Path i : quarkusBootstrap.getAdditionalDeploymentArchives()) {
@@ -277,7 +285,12 @@ public class CuratedApplication implements Serializable, AutoCloseable {
                 if (configuredClassLoading.reloadableArtifacts.contains(dependency.getArtifact().getKey())) {
                     continue;
                 }
-                processCpElement(dependency.getArtifact(), element -> addCpElement(builder, dependency.getArtifact(), element));
+                if (configuredClassLoading.removedArtifacts.contains(dependency.getArtifact().getKey())) {
+                    processCpElement(dependency.getArtifact(), builder::addBannedElement);
+                } else {
+                    processCpElement(dependency.getArtifact(),
+                            element -> addCpElement(builder, dependency.getArtifact(), element));
+                }
             }
 
             baseRuntimeClassLoader = builder.build();
@@ -330,7 +343,9 @@ public class CuratedApplication implements Serializable, AutoCloseable {
     public QuarkusClassLoader createRuntimeClassLoader(ClassLoader base, Map<String, byte[]> resources,
             Map<String, byte[]> transformedClasses) {
         QuarkusClassLoader.Builder builder = QuarkusClassLoader
-                .builder("Quarkus Runtime ClassLoader: " + quarkusBootstrap.getMode(),
+                .builder(
+                        "Quarkus Runtime ClassLoader: " + quarkusBootstrap.getMode() + " restart no:"
+                                + runtimeClassLoaderCount.getAndIncrement(),
                         getBaseRuntimeClassLoader(), false)
                 .setAssertionsEnabled(quarkusBootstrap.isAssertionsEnabled())
                 .setAggregateParentResources(true);
