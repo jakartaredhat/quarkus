@@ -33,6 +33,9 @@
         <version.exec.plugin>3.0.0</version.exec.plugin>
         <failsafe-plugin.version>${version.surefire.plugin}</failsafe-plugin.version>
 
+        <!-- jandex maven plugin version -->
+        <jandex-maven-plugin.version>1.1.0</jandex-maven-plugin.version>
+
         <!-- These properties are needed in order for them to be resolvable by the documentation -->
         <!-- The Graal version we suggest using in documentation - as that's
            what we work with by self downloading it: -->
@@ -59,7 +62,7 @@
         <!-- These 2 properties are used by CreateProjectMojo to add the Maven Wrapper -->
         <proposed-maven-version>3.8.1</proposed-maven-version>
         <maven-wrapper.version>0.7.7</maven-wrapper.version>
-        <gradle-wrapper.version>6.9</gradle-wrapper.version>
+        <gradle-wrapper.version>7.2</gradle-wrapper.version>
 
         <!-- MicroProfile TCK versions -->
         <microprofile-health-api.version>3.1</microprofile-health-api.version>
@@ -75,7 +78,7 @@
         <microprofile-graphql-api.version>1.1.0</microprofile-graphql-api.version>
 
         <!-- Antlr is used by the PanacheQL parser-->
-        <antlr.version>4.8</antlr.version>
+        <antlr.version>4.9.2</antlr.version>
 
         <!-- Defaults for integration tests -->
         <elasticsearch-server.version>7.10.0</elasticsearch-server.version>
@@ -84,7 +87,7 @@
 
         <!-- Align various dependencies that are not really part of the bom-->
         <findbugs.version>3.0.2</findbugs.version>
-        <jsoup.version>1.12.1</jsoup.version>
+        <jsoup.version>1.14.2</jsoup.version>
         <wagon-provider-api.version>3.4.3</wagon-provider-api.version>
 
         <!-- The image to use for tests that run Keycloak -->
@@ -503,6 +506,10 @@
                                             <exclude>org.jboss.resteasy:resteasy-context-propagation</exclude>
                                             <exclude>com.google.android:annotations</exclude>
                                             <exclude>org.codehaus.mojo:animal-sniffer-annotations</exclude>
+                                            <!-- JLine 2.x (EOLed) version shouldn't be pulled in,
+                                            to prevent version compatibility issues with the
+                                            Jansi library shipped in Maven -->
+                                            <exclude>jline:jline</exclude>
                                         </excludes>
                                         <includes>
                                             <!-- this is for REST Assured -->
@@ -580,7 +587,7 @@
                 <plugin>
                     <groupId>org.jboss.jandex</groupId>
                     <artifactId>jandex-maven-plugin</artifactId>
-                    <version>1.1.0</version>
+                    <version>${jandex-maven-plugin.version}</version>
                 </plugin>
                 <plugin>
                     <groupId>net.revelc.code.formatter</groupId>
@@ -1140,17 +1147,6 @@
             </activation>
             <properties>
                 <script.extension>bat</script.extension>
-            </properties>
-        </profile>
-
-        <profile>
-            <id>jdk16-workarounds</id>
-            <activation>
-                <jdk>[16,)</jdk>
-            </activation>
-            <properties>
-                <!-- auto-exclude tests that are known to fail on JDK 16 (tagged via @Tag("failsOnJDK16")) -->
-                <excludedGroups>failsOnJDK16</excludedGroups>
             </properties>
         </profile>
 

@@ -31,7 +31,6 @@
         <opentelemetry-alpha.version>1.5.0-alpha</opentelemetry-alpha.version>
         <jaeger.version>1.6.0</jaeger.version>
         <quarkus-http.version>4.1.1</quarkus-http.version>
-        <jboss-servlet-api_4.0_spec.version>1.0.0.Final</jboss-servlet-api_4.0_spec.version>
         <micrometer.version>1.7.3</micrometer.version>
         <google-auth.version>0.22.0</google-auth.version>
         <microprofile-config-api.version>2.0</microprofile-config-api.version>
@@ -46,7 +45,7 @@
         <smallrye-config.version>2.4.3</smallrye-config.version>
         <smallrye-health.version>3.1.1</smallrye-health.version>
         <smallrye-metrics.version>3.0.1</smallrye-metrics.version>
-        <smallrye-open-api.version>2.1.9</smallrye-open-api.version>
+        <smallrye-open-api.version>2.1.10</smallrye-open-api.version>
         <smallrye-graphql.version>1.3.1</smallrye-graphql.version>
         <smallrye-opentracing.version>2.0.1</smallrye-opentracing.version>
         <smallrye-fault-tolerance.version>5.2.1</smallrye-fault-tolerance.version>
@@ -55,7 +54,7 @@
         <smallrye-reactive-streams-operators.version>1.0.13</smallrye-reactive-streams-operators.version>
         <smallrye-reactive-types-converter.version>2.6.0</smallrye-reactive-types-converter.version>
         <smallrye-mutiny-vertx-binding.version>2.12.0</smallrye-mutiny-vertx-binding.version>
-        <smallrye-reactive-messaging.version>3.9.0</smallrye-reactive-messaging.version>
+        <smallrye-reactive-messaging.version>3.9.1</smallrye-reactive-messaging.version>
         <jakarta.activation.version>1.2.1</jakarta.activation.version>
         <jakarta.annotation-api.version>1.3.5</jakarta.annotation-api.version>
         <jakarta.el-impl.version>3.0.3</jakarta.el-impl.version>
@@ -168,7 +167,7 @@
         <artemis.version>2.17.0</artemis.version>
         <proton-j.version>0.33.8</proton-j.version>
         <okhttp.version>3.14.9</okhttp.version>
-        <sentry.version>5.0.1</sentry.version>
+        <sentry.version>5.1.1</sentry.version>
         <hibernate-quarkus-local-cache.version>0.1.0</hibernate-quarkus-local-cache.version>
         <kubernetes-client.version>5.7.0</kubernetes-client.version>
         <flapdoodle.mongo.version>2.2.0</flapdoodle.mongo.version>
@@ -178,7 +177,7 @@
         <quarkus-spring-boot-api.version>2.1.SP1</quarkus-spring-boot-api.version>
         <mockito.version>3.11.2</mockito.version>
         <jna.version>5.3.1</jna.version><!-- should satisfy both testcontainers and mongodb -->
-        <antlr.version>4.8</antlr.version>
+        <antlr.version>4.9.2</antlr.version>
         <quarkus-security.version>1.1.4.Final</quarkus-security.version>
         <keycloak.version>14.0.0</keycloak.version>
         <logstash-gelf.version>1.14.1</logstash-gelf.version>
