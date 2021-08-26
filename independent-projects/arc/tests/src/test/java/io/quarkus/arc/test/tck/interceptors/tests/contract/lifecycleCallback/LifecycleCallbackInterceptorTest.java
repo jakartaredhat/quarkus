@@ -1,12 +1,11 @@
 package io.quarkus.arc.test.tck.interceptors.tests.contract.lifecycleCallback;
 
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import io.quarkus.arc.test.ArcTestContainer;
 import io.quarkus.arc.test.tck.util.AbstractTestUtils;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
-
-
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class LifecycleCallbackInterceptorTest extends AbstractTestUtils {
     @RegisterExtension

@@ -1,5 +1,6 @@
 package io.quarkus.arc.test.tck.util;
 
+import io.quarkus.arc.Arc;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
@@ -9,14 +10,11 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-
 import javax.enterprise.inject.AmbiguousResolutionException;
 import javax.enterprise.inject.UnsatisfiedResolutionException;
 import javax.enterprise.inject.spi.Bean;
 import javax.enterprise.inject.spi.BeanManager;
 import javax.enterprise.util.TypeLiteral;
-
-import io.quarkus.arc.Arc;
 
 public class AbstractTestUtils {
 
@@ -40,7 +38,7 @@ public class AbstractTestUtils {
      * @return True if match, false otherwise
      */
     public boolean annotationSetMatches(Set<? extends Annotation> annotations,
-                                           Class<? extends Annotation>... requiredAnnotationTypes) {
+            Class<? extends Annotation>... requiredAnnotationTypes) {
         Set<Class<? extends Annotation>> annotationsTypeSet = new HashSet<Class<? extends Annotation>>();
         for (Annotation annotation : annotations) {
             annotationsTypeSet.add(annotation.annotationType());
@@ -96,15 +94,15 @@ public class AbstractTestUtils {
     }
 
     public <T> T getContextualReference(Class<T> beanType, Annotation... qualifiers) {
-        return BeanLookupUtils.<T>getContextualReference(getCurrentManager(), beanType, qualifiers);
+        return BeanLookupUtils.<T> getContextualReference(getCurrentManager(), beanType, qualifiers);
     }
 
     public <T> T getContextualReference(TypeLiteral<T> beanType, Annotation... qualifiers) {
-        return BeanLookupUtils.<T>getContextualReference(getCurrentManager(), beanType, qualifiers);
+        return BeanLookupUtils.<T> getContextualReference(getCurrentManager(), beanType, qualifiers);
     }
 
     public <T> T getContextualReference(String name, Class<T> beanType) {
-        return BeanLookupUtils.<T>getContextualReference(getCurrentManager(), name, beanType);
+        return BeanLookupUtils.<T> getContextualReference(getCurrentManager(), name, beanType);
     }
 
     private <T> Bean<T> resolveUniqueBean(Type type, Set<Bean<T>> beans) {

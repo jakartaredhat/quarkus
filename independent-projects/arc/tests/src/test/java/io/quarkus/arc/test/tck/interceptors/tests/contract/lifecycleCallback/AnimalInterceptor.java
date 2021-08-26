@@ -1,15 +1,13 @@
 package io.quarkus.arc.test.tck.interceptors.tests.contract.lifecycleCallback;
 
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.util.HashSet;
 import java.util.Set;
-
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import javax.interceptor.AroundInvoke;
 import javax.interceptor.InvocationContext;
-
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 public class AnimalInterceptor {
     private static Set<String> postConstructInterceptorCalledFor = new HashSet<String>();

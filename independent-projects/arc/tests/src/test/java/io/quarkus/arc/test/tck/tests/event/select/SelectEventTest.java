@@ -1,22 +1,22 @@
 package io.quarkus.arc.test.tck.tests.event.select;
 
-import javax.enterprise.util.AnnotationLiteral;
-import javax.enterprise.util.TypeLiteral;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import io.quarkus.arc.test.ArcTestContainer;
 import io.quarkus.arc.test.tck.util.AbstractTestUtils;
+import javax.enterprise.util.AnnotationLiteral;
+import javax.enterprise.util.TypeLiteral;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
-
-import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public class SelectEventTest extends AbstractTestUtils {
 
     @RegisterExtension
-    public ArcTestContainer container = new ArcTestContainer(AlarmSystem.class, BreakInEvent.class, NotABindingType.class,
-                                                             SecurityEvent.class, SecurityEvent_Illegal.class,
-                                                             SecuritySensor.class, SystemTest.class, Violent.class
-    );
+    public ArcTestContainer container = ArcTestContainer.builder()
+            .beanClasses(AlarmSystem.class, BreakInEvent.class, NotABindingType.class,
+                    SecurityEvent.class, SecurityEvent_Illegal.class,
+                    SecuritySensor.class, SystemTest.class, Violent.class)
+            .build();
 
     @Test
     public void testEventSelectReturnsEventOfSameType() {
@@ -53,8 +53,10 @@ public class SelectEventTest extends AbstractTestUtils {
 
     @Test
     public <T> void testEventSelectThrowsExceptionIfEventTypeHasTypeVariable() {
-        assertThrows(IllegalArgumentException.class, this::dotestEventSelectThrowsExceptionIfEventTypeHasTypeVariable, "Did not see IllegalArgumentException");
+        assertThrows(IllegalArgumentException.class, this::dotestEventSelectThrowsExceptionIfEventTypeHasTypeVariable,
+                "Did not see IllegalArgumentException");
     }
+
     private <T> void dotestEventSelectThrowsExceptionIfEventTypeHasTypeVariable() {
         SecuritySensor sensor = getContextualReference(SecuritySensor.class);
         sensor.securityEvent.select(new TypeLiteral<SecurityEvent_Illegal<T>>() {
@@ -63,39 +65,52 @@ public class SelectEventTest extends AbstractTestUtils {
 
     @Test
     public void testEventSelectThrowsExceptionForDuplicateBindingType() {
-        assertThrows(IllegalArgumentException.class, this::dotestEventSelectThrowsExceptionForDuplicateBindingType, "Did not see IllegalArgumentException");
+        assertThrows(IllegalArgumentException.class, this::dotestEventSelectThrowsExceptionForDuplicateBindingType,
+                "Did not see IllegalArgumentException");
     }
+
     private void dotestEventSelectThrowsExceptionForDuplicateBindingType() {
         SecuritySensor sensor = getContextualReference(SecuritySensor.class);
         sensor.securityEvent.select(new SystemTest.SystemTestLiteral("a") {
-        }, new SystemTest.SystemTestLiteral("b") {});
+        }, new SystemTest.SystemTestLiteral("b") {
+        });
     }
 
     @Test
     public void testEventSelectWithSubtypeThrowsExceptionForDuplicateBindingType() {
-        assertThrows(IllegalArgumentException.class, this::dotestEventSelectWithSubtypeThrowsExceptionForDuplicateBindingType, "Did not see IllegalArgumentException");
+        assertThrows(IllegalArgumentException.class, this::dotestEventSelectWithSubtypeThrowsExceptionForDuplicateBindingType,
+                "Did not see IllegalArgumentException");
     }
+
     private void dotestEventSelectWithSubtypeThrowsExceptionForDuplicateBindingType() {
         SecuritySensor sensor = getContextualReference(SecuritySensor.class);
         sensor.securityEvent.select(BreakInEvent.class, new SystemTest.SystemTestLiteral("a") {
-        }, new SystemTest.SystemTestLiteral("b") {});
+        }, new SystemTest.SystemTestLiteral("b") {
+        });
     }
 
     @Test
     public void testEventSelectThrowsExceptionIfAnnotationIsNotBindingType() {
-        assertThrows(IllegalArgumentException.class, this::dotestEventSelectThrowsExceptionIfAnnotationIsNotBindingType, "Did not see IllegalArgumentException");
+        assertThrows(IllegalArgumentException.class, this::dotestEventSelectThrowsExceptionIfAnnotationIsNotBindingType,
+                "Did not see IllegalArgumentException");
     }
+
     private void dotestEventSelectThrowsExceptionIfAnnotationIsNotBindingType() {
         SecuritySensor sensor = getContextualReference(SecuritySensor.class);
-        sensor.securityEvent.select(new AnnotationLiteral<NotABindingType>() {});
+        sensor.securityEvent.select(new AnnotationLiteral<NotABindingType>() {
+        });
     }
 
     @Test
     public void testEventSelectWithSubtypeThrowsExceptionIfAnnotationIsNotBindingType() {
-        assertThrows(IllegalArgumentException.class, this::dotestEventSelectWithSubtypeThrowsExceptionIfAnnotationIsNotBindingType, "Did not see IllegalArgumentException");
+        assertThrows(IllegalArgumentException.class,
+                this::dotestEventSelectWithSubtypeThrowsExceptionIfAnnotationIsNotBindingType,
+                "Did not see IllegalArgumentException");
     }
+
     private void dotestEventSelectWithSubtypeThrowsExceptionIfAnnotationIsNotBindingType() {
         SecuritySensor sensor = getContextualReference(SecuritySensor.class);
-        sensor.securityEvent.select(BreakInEvent.class, new AnnotationLiteral<NotABindingType>() {});
+        sensor.securityEvent.select(BreakInEvent.class, new AnnotationLiteral<NotABindingType>() {
+        });
     }
 }

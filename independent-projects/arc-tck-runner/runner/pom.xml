@@ -246,7 +246,8 @@
                         <artifactId>maven-surefire-plugin</artifactId>
                         <version>${surefire.version}</version>
                         <configuration>
-                            <excludedGroups>integration,javaee-full,se</excludedGroups>
+                            <argLine>--patch-module java.base=${project.basedir}/../patches/target/java.base</argLine>
+                            <excludedGroups>cdi-full,integration,javaee-full,se</excludedGroups>
                             <basedir>${project.basedir}</basedir>
                             <systemPropertyVariables>
                                 <!--arquillian.launch>arc</arquillian.launch-->

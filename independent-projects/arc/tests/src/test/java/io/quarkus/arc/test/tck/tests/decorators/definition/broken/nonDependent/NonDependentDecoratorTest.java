@@ -1,13 +1,12 @@
 package io.quarkus.arc.test.tck.tests.decorators.definition.broken.nonDependent;
 
-import javax.enterprise.inject.spi.DefinitionException;
-
-import io.quarkus.arc.test.ArcTestContainer;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.RegisterExtension;
-
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import io.quarkus.arc.test.ArcTestContainer;
+import javax.enterprise.inject.spi.DefinitionException;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 public class NonDependentDecoratorTest {
     // @ShouldThrowException(DefinitionException.class)
@@ -17,7 +16,6 @@ public class NonDependentDecoratorTest {
             .additionalClasses(FooService.class)
             .shouldFail()
             .build();
-
 
     @Test
     //@SpecAssertion(section = DECORATOR_BEAN, id = "f")

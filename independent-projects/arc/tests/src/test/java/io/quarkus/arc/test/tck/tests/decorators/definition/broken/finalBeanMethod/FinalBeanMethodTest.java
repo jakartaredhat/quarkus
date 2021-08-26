@@ -1,13 +1,12 @@
 package io.quarkus.arc.test.tck.tests.decorators.definition.broken.finalBeanMethod;
 
-import javax.enterprise.inject.spi.DeploymentException;
-
-import io.quarkus.arc.test.ArcTestContainer;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.RegisterExtension;
-
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import io.quarkus.arc.test.ArcTestContainer;
+import javax.enterprise.inject.spi.DeploymentException;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 public class FinalBeanMethodTest {
     // @ShouldThrowException(DeploymentException.class)

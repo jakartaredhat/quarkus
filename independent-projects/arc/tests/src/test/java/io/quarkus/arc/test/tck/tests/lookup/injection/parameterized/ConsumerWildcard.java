@@ -2,9 +2,11 @@ package io.quarkus.arc.test.tck.tests.lookup.injection.parameterized;
 
 import java.io.Serializable;
 
+import javax.enterprise.context.Dependent;
 import javax.inject.Inject;
 
 @SuppressWarnings("rawtypes")
+@Dependent
 public class ConsumerWildcard {
 
     @Inject

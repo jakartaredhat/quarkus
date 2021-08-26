@@ -1,6 +1,5 @@
 package io.quarkus.arc.test.tck.tests.event.select;
 
-
 import javax.enterprise.context.RequestScoped;
 import javax.enterprise.event.Observes;
 import javax.enterprise.inject.Any;

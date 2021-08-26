@@ -4,7 +4,6 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
 import java.util.Arrays;
 import java.util.Set;
-
 import javax.enterprise.context.Dependent;
 import javax.enterprise.context.spi.CreationalContext;
 import javax.enterprise.inject.UnsatisfiedResolutionException;
@@ -26,7 +25,7 @@ public final class BeanLookupUtils {
      */
     public static <T> T getContextualReference(BeanManager beanManager, Class<T> beanType, Annotation... qualifiers) {
         Set<Bean<?>> beans = getBeans(beanManager, beanType, qualifiers);
-        return BeanLookupUtils.<T>getContextualReference(beanManager, beanType, beans);
+        return BeanLookupUtils.<T> getContextualReference(beanManager, beanType, beans);
     }
 
     /**
@@ -37,10 +36,10 @@ public final class BeanLookupUtils {
      * @return
      */
     public static <T> T getContextualReference(BeanManager beanManager, TypeLiteral<T> beanTypeLiteral,
-                                               Annotation... qualifiers) {
+            Annotation... qualifiers) {
         Type beanType = beanTypeLiteral.getType();
         Set<Bean<?>> beans = getBeans(beanManager, beanType, qualifiers);
-        return BeanLookupUtils.<T>getContextualReference(beanManager, beanType, beans);
+        return BeanLookupUtils.<T> getContextualReference(beanManager, beanType, beans);
     }
 
     /**
@@ -57,7 +56,7 @@ public final class BeanLookupUtils {
         if (beans == null || beans.isEmpty()) {
             return null;
         }
-        return BeanLookupUtils.<T>getContextualReference(beanManager, beanType, beans);
+        return BeanLookupUtils.<T> getContextualReference(beanManager, beanType, beans);
     }
 
     private static Set<Bean<?>> getBeans(BeanManager beanManager, Type beanType, Annotation... qualifiers) {
