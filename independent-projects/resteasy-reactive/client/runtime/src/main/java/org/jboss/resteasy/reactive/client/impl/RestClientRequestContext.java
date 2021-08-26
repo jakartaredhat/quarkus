@@ -18,6 +18,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import javax.ws.rs.RuntimeType;
+import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.GenericEntity;
 import javax.ws.rs.core.GenericType;
@@ -27,6 +28,7 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.ext.MessageBodyWriter;
 import javax.ws.rs.ext.ReaderInterceptor;
 import javax.ws.rs.ext.WriterInterceptor;
+import org.jboss.resteasy.reactive.ClientWebApplicationException;
 import org.jboss.resteasy.reactive.client.spi.ClientRestHandler;
 import org.jboss.resteasy.reactive.common.core.AbstractResteasyReactiveContext;
 import org.jboss.resteasy.reactive.common.core.Serialisers;
@@ -57,6 +59,7 @@ public class RestClientRequestContext extends AbstractResteasyReactiveContext<Re
     // see Javadoc of javax.ws.rs.client.Invocation or javax.ws.rs.client.SyncInvoker
     private final boolean checkSuccessfulFamily;
     private final CompletableFuture<ResponseImpl> result;
+    private final ClientRestHandler[] abortHandlerChainWithoutResponseFilters;
     /**
      * Only initialised if we have request or response filters
      */
@@ -82,6 +85,7 @@ public class RestClientRequestContext extends AbstractResteasyReactiveContext<Re
             Entity<?> entity, GenericType<?> responseType, boolean registerBodyHandler, Map<String, Object> properties,
             ClientRestHandler[] handlerChain,
             ClientRestHandler[] abortHandlerChain,
+            ClientRestHandler[] abortHandlerChainWithoutResponseFilters,
             ThreadSetupAction requestContext) {
         super(handlerChain, abortHandlerChain, requestContext);
         this.restClient = restClient;
@@ -91,6 +95,7 @@ public class RestClientRequestContext extends AbstractResteasyReactiveContext<Re
         this.requestHeaders = requestHeaders;
         this.configuration = configuration;
         this.entity = entity;
+        this.abortHandlerChainWithoutResponseFilters = abortHandlerChainWithoutResponseFilters;
         if (responseType == null) {
             this.responseType = new GenericType<>(String.class);
             this.checkSuccessfulFamily = false;
@@ -108,7 +113,19 @@ public class RestClientRequestContext extends AbstractResteasyReactiveContext<Re
     }
 
     public void abort() {
+        setAbortHandlerChainStarted(true);
         restart(abortHandlerChain);
+    }
+
+    @Override
+    protected Throwable unwrapException(Throwable t) {
+        var res = super.unwrapException(t);
+        if (res instanceof WebApplicationException) {
+            WebApplicationException webApplicationException = (WebApplicationException) res;
+            return new ClientWebApplicationException(webApplicationException.getMessage(), webApplicationException,
+                    webApplicationException.getResponse());
+        }
+        return res;
     }
 
     public <T> T readEntity(InputStream in,
@@ -377,5 +394,9 @@ public class RestClientRequestContext extends AbstractResteasyReactiveContext<Re
 
     public Map<String, Object> getClientFilterProperties() {
         return properties;
+    }
+
+    public ClientRestHandler[] getAbortHandlerChainWithoutResponseFilters() {
+        return abortHandlerChainWithoutResponseFilters;
     }
 }

@@ -42,7 +42,7 @@
         <microprofile-jwt.version>1.2</microprofile-jwt.version>
         <microprofile-lra.version>1.0</microprofile-lra.version>
         <smallrye-common.version>1.6.0</smallrye-common.version>
-        <smallrye-config.version>2.4.3</smallrye-config.version>
+        <smallrye-config.version>2.4.4</smallrye-config.version>
         <smallrye-health.version>3.1.1</smallrye-health.version>
         <smallrye-metrics.version>3.0.1</smallrye-metrics.version>
         <smallrye-open-api.version>2.1.10</smallrye-open-api.version>
@@ -145,11 +145,11 @@
         <aws-lambda-java-events.version>3.9.0</aws-lambda-java-events.version>
         <aws-lambda-serverless-java-container.version>1.6</aws-lambda-serverless-java-container.version>
         <aws-xray.version>2.9.1</aws-xray.version>
-        <awssdk.version>2.17.20</awssdk.version>
+        <awssdk.version>2.17.26</awssdk.version>
         <aws-alexa-sdk.version>2.40.0</aws-alexa-sdk.version>
         <azure-functions-java-library.version>1.4.2</azure-functions-java-library.version>
-        <kotlin.version>1.5.21</kotlin.version>
-        <kotlin.coroutine.version>1.5.0</kotlin.coroutine.version>
+        <kotlin.version>1.5.30</kotlin.version>
+        <kotlin.coroutine.version>1.5.1</kotlin.coroutine.version>
         <dekorate.version>2.3.0</dekorate.version>
         <maven-artifact-transfer.version>0.10.0</maven-artifact-transfer.version>
         <maven-invoker.version>3.0.1</maven-invoker.version>
@@ -175,7 +175,7 @@
         <quarkus-spring-data-api.version>2.1.SP2</quarkus-spring-data-api.version>
         <quarkus-spring-security-api.version>5.2.Final</quarkus-spring-security-api.version>
         <quarkus-spring-boot-api.version>2.1.SP1</quarkus-spring-boot-api.version>
-        <mockito.version>3.11.2</mockito.version>
+        <mockito.version>3.12.3</mockito.version>
         <jna.version>5.3.1</jna.version><!-- should satisfy both testcontainers and mongodb -->
         <antlr.version>4.9.2</antlr.version>
         <quarkus-security.version>1.1.4.Final</quarkus-security.version>
@@ -4490,7 +4490,7 @@
             </dependency>
             <dependency>
                 <groupId>com.oracle.database.jdbc</groupId>
-                <artifactId>ojdbc8</artifactId>
+                <artifactId>ojdbc11</artifactId>
                 <version>${oracle-jdbc.version}</version>
             </dependency>
             <dependency>
