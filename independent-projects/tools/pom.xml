@@ -38,9 +38,8 @@
         <scala-plugin.version>4.4.0</scala-plugin.version>
 
         <!-- Versions -->
-        <jline.version>3.20.0</jline.version>
         <assertj.version>3.20.2</assertj.version>
-        <jackson.version>2.12.4</jackson.version>
+        <jackson.version>2.12.5</jackson.version>
         <jakarta.enterprise.cdi-api.version>2.0.2</jakarta.enterprise.cdi-api.version>
         <jakarta.servlet-api.version>4.0.3</jakarta.servlet-api.version>
         <jakarta.websocket-api.version>1.1.2</jakarta.websocket-api.version>
@@ -48,7 +47,7 @@
         <commons-compress.version>1.20</commons-compress.version>
         <jboss-logging.version>3.4.2.Final</jboss-logging.version>
         <maven-core.version>3.8.1</maven-core.version>
-        <mockito.version>3.12.3</mockito.version>
+        <mockito.version>3.12.4</mockito.version>
         <version.surefire.plugin>3.0.0-M5</version.surefire.plugin>
         <nexus-staging-maven-plugin.version>1.6.8</nexus-staging-maven-plugin.version>
         <quarkus.version>999-SNAPSHOT</quarkus.version>
@@ -129,11 +128,6 @@
                 <groupId>io.quarkus</groupId>
                 <artifactId>quarkus-devtools-common</artifactId>
                 <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.jline</groupId>
-                <artifactId>jline</artifactId>
-                <version>${jline.version}</version>
             </dependency>
             <dependency>
                 <groupId>commons-io</groupId>
@@ -310,10 +304,6 @@
                                         <exclude>org.slf4j:slf4j-jdk14</exclude>
                                         <exclude>org.slf4j:slf4j-log4j12</exclude>
                                         <exclude>org.slf4j:slf4j-log4j13</exclude>
-                                        <!-- JLine 2.x (EOLed) version shouldn't be pulled in,
-                                        to prevent version compatibility issues with the
-                                        Jansi library shipped in Maven -->
-                                        <exclude>jline:jline</exclude>
                                     </excludes>
                                 </bannedDependencies>
                             </rules>
